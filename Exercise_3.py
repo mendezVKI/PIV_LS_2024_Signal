@@ -19,7 +19,7 @@ plt.rc('font', family='serif')
 plt.rc('xtick',labelsize=13)
 plt.rc('ytick',labelsize=13)
 
-Name='PTV_data/Res00017.dat'
+Name='PIV_DATA_CYLINDER/Res00017.dat'
 DATA = np.genfromtxt(Name,usecols=np.arange(0,4)) 
 X_p=DATA[:,0]; Y_p=DATA[:,1]
 U_p=DATA[:,2] ; V_p=DATA[:,3]

@@ -39,7 +39,7 @@ plt.rc('ytick',labelsize=12)
 
 from Functions_Chapter_10 import Plot_Field_TEXT_Cylinder
 
-FOLDER='DATA_CYLINDER'
+FOLDER='PIV_DATA_CYLINDER'
 Name=FOLDER+os.sep+'Res%05d'%10+'.dat' # Check it out: print(Name)
 Name_Mesh=FOLDER+os.sep+'MESH.dat'
 n_s, Xg, Yg, Vxg, Vyg, X_S,Y_S=Plot_Field_TEXT_Cylinder(Name,Name_Mesh) 
@@ -93,7 +93,7 @@ if not os.path.exists(FOL_OUT_A):
     os.mkdir(FOL_OUT_A)
     
 # This is a folder with all the PTV data 
-FOL_PTV='PTV_data'
+FOL_PTV='PIV_DATA_CYLINDER'
 if not os.path.exists(FOL_PTV):
     os.mkdir(FOL_PTV)
     
