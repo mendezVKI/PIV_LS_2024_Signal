@@ -22,7 +22,7 @@ print('Download Completed! I prepare data Folder')
 from zipfile import ZipFile
 String='Ex_5_TR_PIV_Cylinder.zip'
 zf = ZipFile(String,'r'); 
-zf.extractall('./DATA_CYLINDER'); zf.close()
+zf.extractall('./PIV_DATA_CYLINDER'); zf.close()
 
 
 #%% Step 2: Print a Field and prepare the grid
@@ -79,7 +79,7 @@ Plots=True
 # sampling of the interpolant.
 
 # Approx number of particles
-n_p_range=1000
+n_p_range=2000
 # Fluctuation around that number 
 n_p_sigma=0.02 # this is 2%
 
@@ -88,12 +88,12 @@ from scipy.interpolate import RegularGridInterpolator
 
 
 # This is a folder for the temporary images for the GIF
-FOL_OUT_A='PIV_vs_PTV_Animation'
+FOL_OUT_A='PIV_vs_PTV_Animation_CYL'
 if not os.path.exists(FOL_OUT_A):
     os.mkdir(FOL_OUT_A)
     
 # This is a folder with all the PTV data 
-FOL_PTV='PIV_DATA_CYLINDER'
+FOL_PTV='PTV_DATA_CYLINDER'
 if not os.path.exists(FOL_PTV):
     os.mkdir(FOL_PTV)
     
