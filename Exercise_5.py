@@ -3,7 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
-from Functions_Chapter_10 import Plot_Field_TEXT_Cylinder, Gamma_RBF
+from Functions_Chapter_10 import Plot_Field_TEXT_Cylinder
+
+import sys
+sys.path.insert(0, 'spicy_newrelease')
+# from _basis_RBF import Phi_RBF_2D
+from spicy_vki.utils._basis_RBF import Phi_RBF_2D
 
 # Setting for the plots
 plt.rc('text', usetex=True)
@@ -11,7 +16,7 @@ plt.rc('font', family='serif')
 plt.rc('xtick', labelsize=13)
 plt.rc('ytick', labelsize=13)
 
-Fol_Plots = 'plots_exercise_5'
+Fol_Plots = 'plots_exercise_5_spicy'
 if not os.path.exists(Fol_Plots):
     os.makedirs(Fol_Plots)
 
@@ -56,7 +61,7 @@ K_grid = modu.K
 #%% Meshless POD, computation of I matrix
 
 # Input folder of the RBF weights
-Fol_Rbf = 'RBF_DATA_CYLINDER'
+Fol_Rbf = 'RBF_DATA_CYLINDER_spicy'
 
 weight_list = sorted([file for file in os.listdir(Fol_Rbf) if 'RBF' not in file])
 
@@ -167,7 +172,7 @@ Phi_grid = np.linalg.multi_dot([D, Psi_grid, Sigma_grid_Inv])
 Phi_meshless = np.zeros(Phi_grid.shape)
 
 # The Gamma matrix is the same at every step
-Gamma = Gamma_RBF(Xg.ravel(), Yg.ravel(), X_C, Y_C, c_k)
+Gamma = Phi_RBF_2D(Xg.ravel(), Yg.ravel(), X_C, Y_C, c_k, basis='gauss')
 for i in tqdm(range(n_modes), mininterval=1, desc='Computing Meshless Phi'):
     weights_U_projected = np.squeeze(Psi_meshless[:, i][np.newaxis, :].dot(w_U))
     weights_V_projected = np.squeeze(Psi_meshless[:, i][np.newaxis, :].dot(w_V))
@@ -212,21 +217,6 @@ axes[0, 1].set_title('Gridded $V$')
 axes[0, 2].set_title('Meshless $U$')
 axes[0, 3].set_title('Meshless $V$')
 
-fig.suptitle('Temporal basis Phi')
+fig.suptitle('Spatial basis Phi')
 fig.tight_layout()
-fig.savefig(Fol_Plots + os.sep + 'Psi.pdf')
-
-
-# fig, axes = plt.subplots(figsize=(10, 12), ncols=2, nrows=n_modes, sharex=True, sharey=True)
-# for i in range(axes.shape[0]):
-#     axes[i, 0].imshow(Phi_grid[nxny:, i].reshape(Xg.T.shape))
-
-#     weights_projected = np.squeeze(Psi_meshless[:, i][np.newaxis, :].dot(weights))
-
-#     Gamma = Gamma_RBF(Xg.ravel(), Yg.ravel(), X_C, Y_C, c_k)
-
-#     Phi_V = Gamma.dot(weights_projected[1*n_b:2*n_b]) / Sigma_meshless[i]
-
-#     axes[i, 1].imshow(Phi_V.reshape(Xg.shape).T)
-
-# fig.tight_layout()
+fig.savefig(Fol_Plots + os.sep + 'Phi.pdf')
