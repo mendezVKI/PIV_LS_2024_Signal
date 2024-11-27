@@ -1,32 +1,22 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-from scipy.io import loadmat
-import cv2
-import pandas as pd
-from matplotlib import gridspec
-from time import time
-from concurrent.futures import ThreadPoolExecutor
 
-
-plt.rcParams['image.cmap'] = 'viridis'
-
-fontsize = 17.8
+# Setting for the plots
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.rcParams['xtick.labelsize'] = fontsize
-plt.rcParams['ytick.labelsize'] = fontsize
-plt.rcParams['axes.labelsize'] = fontsize
-plt.rcParams['legend.fontsize'] = fontsize-3
-plt.rcParams['font.size'] = fontsize
-plt.rcParams["text.latex.preamble"] = r"\usepackage{bm}"  # Include the bm package
+plt.rc('xtick', labelsize=13)
+plt.rc('ytick', labelsize=13)
 
+# Generate the output folder
+Fol_Plots = 'plots_exercise_4'
+if not os.path.exists(Fol_Plots):
+    os.makedirs(Fol_Plots)
 
 #%% Load the data
 
 # Input folfer
-Fol_In = 'data_piv'
+Fol_In = 'Exercise_4_PIV_Data'
 # Load the data
 data = np.load(Fol_In + os.sep + 'piv_data.npz')
 
@@ -76,20 +66,20 @@ fig, [ax0, ax1] = plt.subplots(1, 2, figsize=(13, 4.2), dpi=100, gridspec_kw={'w
 
 # u_mean field
 clb = ax0.pcolormesh(X_pcm, Y_pcm, U_mean, cmap=plt.get_cmap('viridis', lut=15))
-plt.colorbar(clb, fraction = 0.043, pad = 0.1, label = r'$u$\,[mm/s]')
+plt.colorbar(clb, fraction=0.043, pad=0.1, label=r'$u$\,[mm/s]')
 ax0.set_xlabel(r'$x$\,[mm]')
 ax0.set_ylabel(r'$y$\,[mm]')
 ax0.set_aspect(1)
 
 # v_mean field
 clb = ax1.pcolormesh(X_pcm, Y_pcm, V_mean, cmap=plt.get_cmap('bwr', lut=15), vmin = -np.max(V_mean), vmax = np.max(V_mean))
-plt.colorbar(clb, fraction = 0.043, pad = 0.1, label = r'$v$\,[mm/s]')
+plt.colorbar(clb, fraction=0.043, pad=0.1, label=r'$v$\,[mm/s]')
 ax1.set_xlabel(r'$x$\,[mm]')
 ax1.set_ylabel(r'$y$\,[mm]')
 ax1.set_aspect(1)
 
 # save figure
-plt.savefig('Ex4_u_mean_v_mean_PIV.png', bbox_inches='tight')
+plt.savefig(Fol_Plots + os.sep + 'Ex4_u_mean_v_mean_PIV.png', bbox_inches='tight')
 
 
 #%% (2) TKE
@@ -119,11 +109,11 @@ k = np.sum(np.diagonal(R_ij), axis=2) / 2
 # plot ans save
 fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
 clb = ax.pcolormesh(X_pcm, Y_pcm, k, cmap=plt.get_cmap('viridis', lut=15))
-plt.colorbar(clb, fraction = 0.043, pad = 0.1, label = r'$k$\,[m²/s²]')
+plt.colorbar(clb, fraction=0.043, pad=0.1, label=r'$k$\,[m²/s²]')
 ax.set_xlabel(r'$x$\,[mm]')
 ax.set_ylabel(r'$y$\,[mm]')
 ax.set_aspect(1)
-plt.savefig('Ex4_TKE.png', bbox_inches = 'tight')
+plt.savefig(Fol_Plots + os.sep + 'Ex4_TKE.png', bbox_inches = 'tight')
 
 #%% (3) Anisotrpy
 
@@ -131,16 +121,16 @@ plt.savefig('Ex4_TKE.png', bbox_inches = 'tight')
 A_ij = R_ij / (2*k[np.newaxis, np.newaxis, :]) - np.diag(np.full(3, 1/3))[:, :, np.newaxis, np.newaxis]
 
 # norm of the tensor
-A_norm = np.linalg.norm(A_ij, axis = (0,1))
+A_norm = np.linalg.norm(A_ij, axis=(0, 1))
 
 # plot and save
 fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
 clb = ax.pcolormesh(X_pcm, Y_pcm, A_norm, cmap=plt.get_cmap('viridis', lut=15))
-plt.colorbar(clb, fraction = 0.043, pad = 0.1, label = r'$||A||$\,[-]')
+plt.colorbar(clb, fraction=0.043, pad=0.1, label = r'$||A||$\,[-]')
 ax.set_xlabel(r'$x$\,[mm]')
 ax.set_ylabel(r'$y$\,[mm]')
 ax.set_aspect(1)
-plt.savefig('Ex4_A_tensor.png', bbox_inches = 'tight')
+plt.savefig(Fol_Plots + os.sep + 'Ex4_A_tensor.png', bbox_inches='tight')
 
 #%% (4) Lumley triangle
 
@@ -222,4 +212,4 @@ ax.set_ylim(-0.01, 0.35)
 ax.set_xlabel(r'$III$')
 ax.set_ylabel(r'$II$')
 ax.scatter(III, II, s=10, facecolor='None', edgecolor='r')
-plt.savefig('Ex4_Lumley_triangle.png', bbox_inches = 'tight')
+plt.savefig(Fol_Plots + os.sep + 'Ex4_Lumley_triangle.png', bbox_inches='tight')

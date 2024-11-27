@@ -13,8 +13,8 @@ from scipy import signal
 # Setting for the plots
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.rc('xtick',labelsize=13)
-plt.rc('ytick',labelsize=13)
+plt.rc('xtick', labelsize=13)
+plt.rc('ytick', labelsize=13)
 
 # Generate the output folder
 Fol_Plots = 'plots_exercise_2'
