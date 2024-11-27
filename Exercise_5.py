@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from Functions_Chapter_10 import Plot_Field_TEXT_Cylinder
+from scipy.fft import fft, fftfreq
 
 import sys
 sys.path.insert(0, 'spicy_newrelease')
@@ -22,13 +23,10 @@ if not os.path.exists(Fol_Plots):
 
 #%% Load the (gridded PIV data)
 
-def load_piv_data(file_name):
-    data = np.genfromtxt(file_name, usecols=[0, 1], max_rows=nxny+1)[1:, :]
-    return data
-
+n_snapshots = 1000
 # Define the input folder and only take the first 1000 frames
 Fol_Piv = 'PIV_DATA_CYLINDER'
-file_names = sorted([file for file in os.listdir(Fol_Piv) if 'MESH' not in file])[:1000]
+file_names = sorted([file for file in os.listdir(Fol_Piv) if 'MESH' not in file])[:n_snapshots]
 
 n_t = len(file_names)
 
@@ -38,25 +36,74 @@ Name_Mesh = Fol_Piv + os.sep + 'MESH.dat'
 n_s, Xg, Yg, Vxg, Vyg, X_S, Y_S = Plot_Field_TEXT_Cylinder(Name, Name_Mesh, PLOT=False)
 nxny = int(n_s/2)
 
+
+def load_piv_data(file_name):
+    data = np.genfromtxt(file_name)[1:, :]
+    return data
+
 # Parallel processing to load the files
-num_workers = 6
+num_workers = 4
 with ThreadPoolExecutor(max_workers=num_workers) as executor:
     results = np.array(list(tqdm(executor.map(lambda file_name: load_piv_data(Fol_Piv + os.sep + file_name),
         file_names),
-        total=len(file_names), disable=False, desc='Loading PIV Data')))
+        total=len(file_names), desc='Loading PIV Data')))
 
-#%% Compute the POD using the modulo package (this is just to check the decompositions later on)
-# TODO Delete this cell later on
+
+#%% Compute the POD using the modulo package
+
+D = np.transpose(results, axes=(0, 2, 1)).reshape(n_t, n_s).T
+
 from modulo_vki import ModuloVKI
-
-D = np.transpose(results, axes=(0, 2, 1))
-# D = D - np.mean(D, axis=0)[np.newaxis, :, :]
-D = D.reshape(n_t, n_s).T
-
 modu = ModuloVKI(data=np.nan_to_num(D), n_Modes=1000)
-Phi_POD, Psi_POD, Sigma_POD = modu.compute_POD_K()
+Phi_grid, Psi_grid, Sigma_grid = modu.compute_POD_K()
 
-K_grid = modu.K
+#%% Visualization of the gridded modes
+
+# Plot the amplitudes
+fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
+ax.plot(Sigma_grid, 'ko')
+ax.set_yscale('log')
+ax.set_title('Gridded amplitude $\sigma$')
+ax.set_xlim(-0.5, 50.5)
+ax.set_ylim(1e2, 5e4)
+fig.tight_layout()
+fig.savefig(Fol_Plots + os.sep + 'Sigmas_grid.pdf')
+
+
+# And the temporal modes
+
+# Sampling frequency to use for the fft
+Fs = 3000
+dt = 1/Fs
+t = np.linspace(0, n_snapshots*dt, endpoint=False)
+freqs = fftfreq(n_snapshots, dt)[:n_snapshots//2]
+
+fig, axes = plt.subplots(figsize=(5, 5), dpi=100, ncols=1, nrows=3, sharex=True)
+for i in range(axes.shape[0]):
+    # Perform the fft and plot it
+    axes[i].plot(freqs, 2.0/n_snapshots * np.abs(fft(Psi_grid[:, i])[0:n_snapshots//2]))
+    axes[i].set_ylabel('Mode ' + str(i))
+axes[2].set_xlabel('$f$ [Hz]')
+fig.suptitle('Gridded FFTs of $\psi$')
+fig.tight_layout()
+fig.savefig(Fol_Plots + os.sep + 'Psi_fft_grid.pdf')
+
+
+# And the spatial modes
+n_plot = 3  # Only plot the first 3 spatial modes
+fig, axes = plt.subplots(figsize=(8, 6), ncols=2, nrows=n_plot, sharex=True, sharey=True)
+for i in range(axes.shape[0]):
+    axes[i, 0].imshow(Phi_grid[:nxny, i].reshape(Xg.T.shape))
+    axes[i, 1].imshow(Phi_grid[nxny:, i].reshape(Xg.T.shape))
+    axes[i, 0].set_ylabel('Mode ' + str(i))
+
+axes[0, 0].set_title('$U$')
+axes[0, 1].set_title('$V$')
+
+fig.suptitle('Gridded spatial basis $\phi$')
+fig.tight_layout()
+fig.savefig(Fol_Plots + os.sep + 'Phi_grid.pdf')
+
 
 #%% Meshless POD, computation of I matrix
 
@@ -65,7 +112,7 @@ Fol_Rbf = 'RBF_DATA_CYLINDER'
 
 weight_list = sorted([file for file in os.listdir(Fol_Rbf) if 'RBF' not in file])
 
-
+# Function for the integrand in equation 77
 def func(x, y, x_c_n, x_c_m, y_c_n, y_c_m, c_n, c_m):
     return np.exp(-c_n**2 * ((x-x_c_n)**2 + (y-y_c_n)**2)) * \
         np.exp(-c_m**2 * ((x-x_c_m)**2 + (y-y_c_m)**2))
@@ -74,23 +121,9 @@ def func(x, y, x_c_n, x_c_m, y_c_n, y_c_m, c_n, c_m):
 X_C, Y_C, c_k = np.genfromtxt(Fol_Rbf + os.sep + 'RBFs.dat').T
 n_b = c_k.shape[0]
 
-
-# # This was to test dblquad, but for some reason it did not work well, so we just use a summation for now
-# from scipy.integrate import dblquad
-# n = 1
-# m = 33
-# integral, error = dblquad(
-#     func,
-#     Xg.min(), Xg.max(),
-#     lambda x: Yg.min(),
-#     lambda x: Yg.max(),
-#     args=(X_C[n], X_C[m], Y_C[n], Y_C[m], c_k[n], c_k[m])
-#     )
-
 # Integration domain (for classic integration)
-n_integrate = 151
-x_integrate = np.linspace(Xg.min(), Xg.max(), n_integrate)
-y_integrate = np.linspace(Yg.min(), Yg.max(), int(n_integrate / 0.41))
+x_integrate = np.linspace(Xg.min(), Xg.max(), 151)
+y_integrate = np.linspace(Yg.min(), Yg.max(), 61)
 X_integrate, Y_integrate = np.meshgrid(x_integrate, y_integrate)
 X_integrate = X_integrate.ravel()
 Y_integrate = Y_integrate.ravel()
@@ -124,7 +157,7 @@ for i in tqdm(range(n_t), desc='Computing meshless K'):
 
 # Plot the two different Ks
 fig, axes = plt.subplots(figsize=(10, 5), dpi=100, ncols=2)
-axes[0].imshow(K_grid)
+axes[0].imshow(modu.K)
 axes[1].imshow(K_meshless)
 axes[0].set_title('Gridded')
 axes[1].set_title('Meshless')
@@ -137,15 +170,6 @@ fig.savefig(Fol_Plots + os.sep + 'K_matrix.pdf')
 from scipy.linalg import eigh
 
 n_modes = 1000  # Full POD
-
-# Perform the eigendecomposition
-n = np.shape(K_grid)[0]
-Lambda_grid, Psi_grid = eigh(K_grid, subset_by_index=[n - n_modes, n - 1])
-# Sort eigenvalues by their magnitude
-idx = np.flip(np.argsort(Lambda_grid))
-Lambda_grid = Lambda_grid[idx]
-Psi_grid = Psi_grid[:, idx]
-Sigma_grid = np.sqrt(Lambda_grid)
 
 # The computation of Sigma and Psi is the same for the meshless POD (since time is still a discrete variable)
 n = np.shape(K_meshless)[0]
@@ -163,11 +187,6 @@ w_V = np.zeros((n_t, n_b))
 for i in tqdm(range(n_t)):
     w_U[i, :], w_V[i, :] = np.genfromtxt(Fol_Rbf + os.sep + weight_list[i]).T
 
-# The spatial basis for gridded data just requires matrix multiplications
-Sigma_grid_Inv_V = 1 / Sigma_grid
-Sigma_grid_Inv = np.diag(Sigma_grid_Inv_V)
-Phi_grid = np.linalg.multi_dot([D, Psi_grid, Sigma_grid_Inv])
-
 # The meshless Phi can be computed on ANY set of points. For reference, we take the same ones as the gridded POD
 Phi_meshless = np.zeros(Phi_grid.shape)
 
@@ -181,42 +200,49 @@ for i in tqdm(range(n_modes), mininterval=1, desc='Computing Meshless Phi'):
     Phi_meshless[nxny:, i] = Gamma.dot(weights_V_projected) / Sigma_meshless[i]
 
 
-#%% Visualization of the modes
+#%% Visualization of the meshless modes
 
-fig, ax = plt.subplots(figsize=(7, 5), dpi=100)
-ax.plot(Sigma_grid/np.nansum(Sigma_grid), 'ko', label='Gridded')
-ax.plot(Sigma_meshless/np.nansum(Sigma_meshless), 'rs', label='Meshless', alpha=0.5)
+# Plot the amplitudes
+fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
+ax.plot(Sigma_meshless, 'ko')
 ax.set_yscale('log')
-ax.legend()
-ax.set_title('Sigmas')
+ax.set_title('Meshless amplitude $\sigma$')
 ax.set_xlim(-0.5, 50.5)
-ax.set_ylim(1e-3, 1)
+ax.set_ylim(5e2, 1e5)
 fig.tight_layout()
-fig.savefig(Fol_Plots + os.sep + 'Sigmas.pdf')
+fig.savefig(Fol_Plots + os.sep + 'Sigmas_meshless.pdf')
 
-fig, axes = plt.subplots(figsize=(10, 15), dpi=100, ncols=1, nrows=6, sharex=True)
+
+# And the temporal modes
+
+# Sampling frequency to use for the fft
+Fs = 3000
+dt = 1/Fs
+t = np.linspace(0, n_snapshots*dt, endpoint=False)
+freqs = fftfreq(n_snapshots, dt)[:n_snapshots//2]
+
+fig, axes = plt.subplots(figsize=(5, 5), dpi=100, ncols=1, nrows=3, sharex=True)
 for i in range(axes.shape[0]):
-    axes[i].plot(Psi_grid[:, i], label='Gridded')
-    axes[i].plot(Psi_meshless[:, i], label='Meshless')
-axes[0].legend()
-fig.suptitle('Temporal basis Psi')
+    # Perform the fft and plot it
+    axes[i].plot(freqs, 2.0/n_snapshots * np.abs(fft(Psi_meshless[:, i])[0:n_snapshots//2]))
+    axes[i].set_ylabel('Mode ' + str(i))
+axes[2].set_xlabel('$f$ [Hz]')
+fig.suptitle('Meshless FFTs of $\psi$')
 fig.tight_layout()
-fig.savefig(Fol_Plots + os.sep + 'Psi.pdf')
+fig.savefig(Fol_Plots + os.sep + 'Psi_fft_meshless.pdf')
 
 
-n_plot = 5  # Only plot the first 5 spatial modes
-fig, axes = plt.subplots(figsize=(14, 12), ncols=4, nrows=n_plot, sharex=True, sharey=True)
+# And the spatial modes
+n_plot = 3  # Only plot the first 3 spatial modes
+fig, axes = plt.subplots(figsize=(8, 6), ncols=2, nrows=n_plot, sharex=True, sharey=True)
 for i in range(axes.shape[0]):
-    axes[i, 0].imshow(Phi_grid[:nxny, i].reshape(Xg.T.shape))
-    axes[i, 1].imshow(Phi_grid[nxny:, i].reshape(Xg.T.shape))
-    axes[i, 2].imshow(Phi_meshless[:nxny, i].reshape(Xg.shape).T)
-    axes[i, 3].imshow(Phi_meshless[nxny:, i].reshape(Xg.shape).T)
+    axes[i, 0].imshow(Phi_meshless[:nxny, i].reshape(Xg.shape).T)
+    axes[i, 1].imshow(Phi_meshless[nxny:, i].reshape(Xg.shape).T)
+    axes[i, 0].set_ylabel('Mode ' + str(i))
 
-axes[0, 0].set_title('Gridded $U$')
-axes[0, 1].set_title('Gridded $V$')
-axes[0, 2].set_title('Meshless $U$')
-axes[0, 3].set_title('Meshless $V$')
+axes[0, 0].set_title('$U$')
+axes[0, 1].set_title('$V$')
 
-fig.suptitle('Spatial basis Phi')
+fig.suptitle('Meshless spatial basis $\phi$')
 fig.tight_layout()
-fig.savefig(Fol_Plots + os.sep + 'Phi.pdf')
+fig.savefig(Fol_Plots + os.sep + 'Phi_meshless.pdf')
