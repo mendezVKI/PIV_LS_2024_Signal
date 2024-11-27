@@ -16,7 +16,7 @@ plt.rc('font', family='serif')
 plt.rc('xtick', labelsize=13)
 plt.rc('ytick', labelsize=13)
 
-Fol_Plots = 'plots_exercise_5_spicy'
+Fol_Plots = 'plots_exercise_5'
 if not os.path.exists(Fol_Plots):
     os.makedirs(Fol_Plots)
 
@@ -61,7 +61,7 @@ K_grid = modu.K
 #%% Meshless POD, computation of I matrix
 
 # Input folder of the RBF weights
-Fol_Rbf = 'RBF_DATA_CYLINDER_spicy'
+Fol_Rbf = 'RBF_DATA_CYLINDER'
 
 weight_list = sorted([file for file in os.listdir(Fol_Rbf) if 'RBF' not in file])
 

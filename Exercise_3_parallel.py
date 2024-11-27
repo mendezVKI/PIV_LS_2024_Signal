@@ -26,7 +26,7 @@ sys.path.insert(0, 'spicy_newrelease')
 from spicy_vki.spicy import Spicy
 
 # Generate the output folder
-Fol_Plots = 'plots_exercise_3_spicy'
+Fol_Plots = 'plots_exercise_3'
 if not os.path.exists(Fol_Plots):
     os.makedirs(Fol_Plots)
 
@@ -35,7 +35,7 @@ if not os.path.exists(Fol_Plots):
 # Step 1 Function that takes in input a range of snapshots
 # and produce the associated w_u, w_v.
 
-def process_Spicy_parallel(file_name):
+def process_parallel(file_name):
     Name = Fol_In + os.sep + file_name
     X_p, Y_p, U_p, V_p = np.genfromtxt(Name).T
 
@@ -56,12 +56,12 @@ def process_Spicy_parallel(file_name):
 Fol_In = 'PTV_DATA_CYLINDER'
 
 
-Fol_Out_A = 'PTV_vs_RBF_Animation_CYL_spicy'
+Fol_Out_A = 'PTV_vs_RBF_Animation_CYL'
 if not os.path.exists(Fol_Out_A):
     os.mkdir(Fol_Out_A)
 
 # This is a folder with all the PTV data
-Fol_Rbf = 'RBF_DATA_CYLINDER_spicy'
+Fol_Rbf = 'RBF_DATA_CYLINDER'
 if not os.path.exists(Fol_Rbf):
     os.mkdir(Fol_Rbf)
 
@@ -82,7 +82,7 @@ np.savetxt(collocation_path, np.column_stack((SP.X_C, SP.Y_C, SP.c_k)), delimite
 
 with ThreadPoolExecutor(max_workers=num_workers) as executor:
     results = np.array(list(tqdm(executor.map(lambda file_name:
-                                              process_Spicy_parallel(file_name),
+                                              process_parallel(file_name),
         file_names),
         total=len(file_names), disable=False, desc='Processing with SPICY in parallel')))
 
