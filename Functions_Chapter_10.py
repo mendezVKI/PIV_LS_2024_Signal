@@ -277,3 +277,17 @@ def PSD_Freq(h, dt=1, nsmooth=5):
     ps *= n**2 / winweights.sum()**2
 
     return freqs, ps, psd
+
+# =============================================================================
+# RBF functions
+# =============================================================================
+
+
+def Gamma_RBF(X_p, Y_p, X_C, Y_C, c_k):
+    n_b = len(X_C) # number of bases
+    n_p = len(X_p) # number of points for the evaluation
+    Gamma_matrix = np.zeros((n_p,n_b))
+    for r in range(n_b):
+        gaussian = np.exp(-c_k[r]**2 * ((X_p-X_C[r])**2 + (Y_p-Y_C[r])**2))
+        Gamma_matrix[:, r] = gaussian
+    return Gamma_matrix # matrix of basis functions
