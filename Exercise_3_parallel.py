@@ -128,7 +128,7 @@ for idx in tqdm(range(100)):
         ax.add_patch(circle)
 
     Name = Fol_Out_A + os.sep + 'Snapshot_U_{0:03d}.png'.format(idx)
-    plt.savefig(Name,dpi=100)
+    fig.savefig(Name,dpi=100)
     plt.close('all')
 
 #%% Animation of the RBF regression
@@ -145,4 +145,4 @@ for k in range(100):
     images.append(imageio.imread(Name))
 
 # 4. Create the gif from the video tensor
-imageio.mimsave(gifname, images, duration=0.1, loop=-1)
+imageio.mimsave(gifname, images, duration=0.1, loop=0)
