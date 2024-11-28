@@ -855,7 +855,7 @@ class Spicy:
         return
 
     # 3.3 Plot the RBFs, this is just a visualization tool
-    def plot_RBFs(self,l=0):
+    def plot_RBFs(self, level=0):
         """
         Utility function to check the spreading of the RBFs after the clustering.
         This function generates several plots. It produces no new variable in SPICY.
@@ -865,23 +865,38 @@ class Spicy:
             This defines the cluster level of RBF that will be visualized.
         """
 
+        if not hasattr(self, 'c_D'):
+            if self.model == 'scalar':
+                self.scalar_constraints(extra_RBF=False)
+            elif self.model == 'laminar':
+                self.vector_constraints(extra_RBF=False)
+            else:
+                pass
+
         # Check if it is 2D or 3D
         if self.dimension == '2D': # 2D
             try:
                 # We define the data that will be included
-                X_Plot = self.X_C[np.argwhere(self.Clust_list==l)]
-                Y_Plot = self.Y_C[np.argwhere(self.Clust_list==l)]
-                d_K_Plot = self.d_k[np.argwhere(self.Clust_list==l)]
+                X_Plot = self.X_C[np.argwhere(self.Clust_list==level)]
+                Y_Plot = self.Y_C[np.argwhere(self.Clust_list==level)]
+                d_K_Plot = self.d_k[np.argwhere(self.Clust_list==level)]
 
                 fig, axs = plt.subplots(1, 2, figsize = (7, 3.5), dpi = 100)
                 # First plot is the RBF distribution
-                axs[0].set_title("RBF Collocation for l="+str(l))
+                axs[0].set_title("RBF Collocation for l="+str(level))
 
                 # Also show the data points
                 if self.model == 'scalar':
-                     axs[0].scatter(self.X_G, self.Y_G, c=self.u, s=10)
+                    if self.u.shape[0] > 10000:
+                        axs[0].scatter(self.X_G[::100], self.Y_G[::100], c=self.u[::100, 0], s=10)
+                    else:
+                        axs[0].scatter(self.X_G, self.Y_G, c=self.u[:, 0], s=10)
                 elif self.model == 'laminar':
-                     axs[0].scatter(self.X_G, self.Y_G, c=np.sqrt(self.u**2 + self.v**2), s=10)
+                    if self.u.shape[0] > 10000:
+                        axs[0].scatter(self.X_G[::100], self.Y_G[::100],
+                                       c=np.sqrt(self.u[::100]**2 + self.v[::100]**2), s=10)
+                    else:
+                        axs[0].scatter(self.X_G, self.Y_G, c=np.sqrt(self.u**2 + self.v**2), s=10)
 
                 for i in range(0,len(X_Plot),1):
                     circle1 = plt.Circle((X_Plot[i], Y_Plot[i]), d_K_Plot[i]/2,
@@ -898,7 +913,7 @@ class Spicy:
                 axs[1].stem(d_K_Plot)
                 axs[1].set_xlabel('Basis index')
                 axs[1].set_ylabel('Diameter')
-                axs[1].set_title("Distribution of diameters for L="+str(l))
+                axs[1].set_title("Distribution of diameters for L="+str(level))
                 fig.tight_layout()
 
             except:
@@ -1136,136 +1151,135 @@ class Spicy:
         # Loop over all the quantities to be regressed. For a laminar regression,
         # this loop will only run once. For scalar regression, the loop is executed
         # once for each quantity
-        for ii in range(self.u.shape[1]):
 
-            self._get_rescale()
+        self._get_rescale()
 
-            ########################################################
-            ### We first build the constraint matrices B and b_2 ###
-            ########################################################
-            # Compute the Patch weight for the Dirichlet and Neumann points. We further compute the
-            # product Phi*Omega in the Dirichlet points as this is used to build the constraint matrix
-            Phi_X_D = self._compute_Phi_matrix(self.X_D, self.Y_D, self.Z_D)
+        ########################################################
+        ### We first build the constraint matrices B and b_2 ###
+        ########################################################
+        # Compute the Patch weight for the Dirichlet and Neumann points. We further compute the
+        # product Phi*Omega in the Dirichlet points as this is used to build the constraint matrix
+        Phi_X_D = self._compute_Phi_matrix(self.X_D, self.Y_D, self.Z_D)
 
-            # We compute the product Phi_N*Omega to stack into the constraint matrix
-            if self.dimension == '2D':
-                Phi_X_N_der_x, Phi_X_N_der_y = (
-                    self._compute_dxPhi_matrix(self.X_N, self.Y_N, self.Z_N)
-                )
-                PhiN_X_N = (
+        # We compute the product Phi_N*Omega to stack into the constraint matrix
+        if self.dimension == '2D':
+            Phi_X_N_der_x, Phi_X_N_der_y = (
+                self._compute_dxPhi_matrix(self.X_N, self.Y_N, self.Z_N)
+            )
+            PhiN_X_N = (
+                np.multiply(Phi_X_N_der_x, self.n_x[:, np.newaxis]) +
+                np.multiply(Phi_X_N_der_y, self.n_y[:, np.newaxis])
+            )
+
+        elif self.dimension == '3D':
+            Phi_X_N_der_x, Phi_X_N_der_y, Phi_X_N_der_z = (
+                self._compute_dxPhi_matrix(self.X_N, self.Y_N, self.Z_N)
+            )
+            PhiN_X_N = (
                     np.multiply(Phi_X_N_der_x, self.n_x[:, np.newaxis]) +
-                    np.multiply(Phi_X_N_der_y, self.n_y[:, np.newaxis])
-                )
+                    np.multiply(Phi_X_N_der_y, self.n_y[:, np.newaxis]) +
+                    np.multiply(Phi_X_N_der_z, self.n_z[:, np.newaxis])
+            )
 
-            elif self.dimension == '3D':
-                Phi_X_N_der_x, Phi_X_N_der_y, Phi_X_N_der_z = (
-                    self._compute_dxPhi_matrix(self.X_N, self.Y_N, self.Z_N)
-                )
-                PhiN_X_N = (
-                        np.multiply(Phi_X_N_der_x, self.n_x[:, np.newaxis]) +
-                        np.multiply(Phi_X_N_der_y, self.n_y[:, np.newaxis]) +
-                        np.multiply(Phi_X_N_der_z, self.n_z[:, np.newaxis])
-                )
+        # In the scalar case, we only have two matrices to stack into B and b_w
+        if self.model == 'scalar':
+            self.B = np.concatenate((
+                Phi_X_D,
+                PhiN_X_N
+            )).T
 
-            # In the scalar case, we only have two matrices to stack into B and b_w
-            if self.model == 'scalar':
-                self.B = np.concatenate((
-                    Phi_X_D,
-                    PhiN_X_N
-                )).T
+            self.b_2 = np.concatenate((
+                self.c_D,
+                self.c_N
+            ))
 
-                self.b_2 = np.concatenate((
-                    self.c_D,
-                    self.c_N
+
+        # In the laminar case, we also compute the derivative matrix on the divergence points
+        # b_2 depends on the dimension, so we stack it in the if-condition
+        elif self.model == 'laminar':
+            if self.dimension == '2D':
+                Phi_X_Div_der_x, Phi_X_Div_der_y = (
+                    self._compute_dxPhi_matrix(self.X_G, self.Y_G, self.Z_G)
+                )
+                D_nabla_j = np.hstack((
+                    Phi_X_Div_der_x,
+                    Phi_X_Div_der_y
                 ))
 
+                self.b_2 = np.concatenate((
+                    np.zeros(self.X_Div.shape[0]),
+                    self.c_D_X,
+                    self.c_D_Y,
+                    self.c_N_X,
+                    self.c_N_Y
+                ))
 
-            # In the laminar case, we also compute the derivative matrix on the divergence points
-            # b_2 depends on the dimension, so we stack it in the if-condition
-            elif self.model == 'laminar':
-                if self.dimension == '2D':
-                    Phi_X_Div_der_x, Phi_X_Div_der_y = (
-                        self._compute_dxPhi_matrix(self.X_G, self.Y_G, self.Z_G)
-                    )
-                    D_nabla_j = np.hstack((
-                        Phi_X_Div_der_x,
-                        Phi_X_Div_der_y
-                    ))
+            elif self.dimension == '3D':
+                Phi_X_Div_der_x, Phi_X_Div_der_y, Phi_X_Div_der_z = (
+                    self._compute_dxPhi_matrix(self.X_G, self.Y_G, self.Z_G)
+                )
+                D_nabla_j = np.hstack((
+                    Phi_X_Div_der_x,
+                    Phi_X_Div_der_y,
+                    Phi_X_Div_der_z
+                ))
 
-                    self.b_2 = np.concatenate((
-                        np.zeros(self.X_Div.shape[0]),
-                        self.c_D_X,
-                        self.c_D_Y,
-                        self.c_N_X,
-                        self.c_N_Y
-                    ))
+                self.b_2 = np.concatenate((
+                    np.zeros(self.X_Div.shape[0]),
+                    self.c_D_X_j,
+                    self.c_D_Y_j,
+                    self.c_D_Z_j,
+                    self.c_N_X_j,
+                    self.c_N_Y_j,
+                    self.c_N_Z_j
+                ))
 
-                elif self.dimension == '3D':
-                    Phi_X_Div_der_x, Phi_X_Div_der_y, Phi_X_Div_der_z = (
-                        self._compute_dxPhi_matrix(self.X_G, self.Y_G, self.Z_G)
-                    )
-                    D_nabla_j = np.hstack((
-                        Phi_X_Div_der_x,
-                        Phi_X_Div_der_y,
-                        Phi_X_Div_der_z
-                    ))
+            # B is build independent of the dimension
+            self.B = np.concatenate((
+                D_nabla_j,
+                stack_to_block_matrix(self.dimension, Phi_X_D),
+                stack_to_block_matrix(self.dimension, PhiN_X_N)
+            )).T
 
-                    self.b_2 = np.concatenate((
-                        np.zeros(self.X_Div.shape[0]),
-                        self.c_D_X_j,
-                        self.c_D_Y_j,
-                        self.c_D_Z_j,
-                        self.c_N_X_j,
-                        self.c_N_Y_j,
-                        self.c_N_Z_j
-                    ))
+        ###############################################
+        ### We close with the data matrix A and b_1 ###
+        ###############################################
 
-                # B is build independent of the dimension
-                self.B = np.concatenate((
-                    D_nabla_j,
-                    stack_to_block_matrix(self.dimension, Phi_X_D),
-                    stack_to_block_matrix(self.dimension, PhiN_X_N)
-                )).T
+        # First, we compute Omega and Omega*Phi in the data points
+        Phi_X = self._compute_Phi_matrix(self.X_G, self.Y_G, self.Z_G)
 
-            ###############################################
-            ### We close with the data matrix A and b_1 ###
-            ###############################################
+        # Compute the product Phi.T @ Phi
+        Phi_XT_dot_Phi_X = Phi_X.T @ Phi_X
 
-            # First, we compute Omega and Omega*Phi in the data points
-            Phi_X = self._compute_Phi_matrix(self.X_G, self.Y_G, self.Z_G)
+        # For the scalar case, we only have one dimension, so no further stacking
+        if self.model == 'scalar':
+            # Compute Phi.T@Phi
+            self.A = 2 * Phi_XT_dot_Phi_X / self.scale_U
 
-            # Compute the product Phi.T @ Phi
-            Phi_XT_dot_Phi_X = Phi_X.T @ Phi_X
+            # Assemble b_1. The data points are weighted with Omega
+            self.b_1 = 2 * (
+                Phi_X.T.dot(self.u)
+            ) / self.scale_U
 
-            # For the scalar case, we only have one dimension, so no further stacking
-            if self.model == 'scalar':
-                # Compute Phi.T@Phi
-                self.A = 2 * Phi_XT_dot_Phi_X / self.scale_U
+        # For the laminar case, we have to build A as a block matrix and b_1 through stacking
+        elif self.model == 'laminar':
+            self.A = 2 * stack_to_block_matrix(self.dimension, Phi_XT_dot_Phi_X) / self.scale_U
 
-                # Assemble b_1. The data points are weighted with Omega
-                self.b_1 = 2 * (
-                    Phi_X.T.dot(self.u)
-                ) / self.scale_U
+            if self.dimension == '2D':
+                self.b_1 = 2 * np.concatenate((
+                    Phi_X.T.dot(self.u),
+                    Phi_X.T.dot(self.v)
+                )) / self.scale_U
+            if self.dimension == '3D':
+                self.b_1 = 2 * np.concatenate((
+                    Phi_X.T.dot(self.u),
+                    Phi_X.T.dot(self.v),
+                    Phi_X.T.dot(self.w)
+                )) / self.scale_U
 
-            # For the laminar case, we have to build A as a block matrix and b_1 through stacking
-            elif self.model == 'laminar':
-                self.A = 2 * stack_to_block_matrix(self.dimension, Phi_XT_dot_Phi_X) / self.scale_U
-
-                if self.dimension == '2D':
-                    self.b_1 = 2 * np.concatenate((
-                        Phi_X.T.dot(self.u),
-                        Phi_X.T.dot(self.v)
-                    )) / self.scale_U
-                if self.dimension == '3D':
-                    self.b_1 = 2 * np.concatenate((
-                        Phi_X.T.dot(self.u),
-                        Phi_X.T.dot(self.v),
-                        Phi_X.T.dot(self.w)
-                    )) / self.scale_U
-
-                # Add the penalty for a divergence-free flow
-                if self.alpha_div is not None:
-                    self._add_divergence_penalty(alpha_div=self.alpha_div)
+            # Add the penalty for a divergence-free flow
+            if self.alpha_div is not None:
+                self._add_divergence_penalty(alpha_div=self.alpha_div)
 
 
         # # Scalar model:
