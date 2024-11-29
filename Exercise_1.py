@@ -3,6 +3,8 @@
 Created on Mon Nov 11 13:52:19 2024
 
 @author: mendez
+
+Script for Exercise 1: statistics of a random process
 """
 
 # We study the statistics of an Ornstein-Uhlenbeck Process

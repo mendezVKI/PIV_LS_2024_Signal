@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov 7 18:02:43 2024
+
+@author: rigutto, ratz, mendez
+
+Script of Exercise 3: computing turbulence statistics from PIV data.
+"""
+
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -20,10 +29,10 @@ if not os.path.exists(Fol_Plots):
 
 #%% Load the data
 
-# Input folfer
-Fol_In = 'Exercise_3_PIV_Data'
+# Input folder
+Fol_In = 'PIV_DATA_JET'
 
-data = np.load(Fol_In + os.sep + 'piv_data.npz')
+data = np.load(Fol_In + os.sep + 'piv_JET.npz')
 
 X = data['X']
 Y = data['Y']

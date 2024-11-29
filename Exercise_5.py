@@ -1,12 +1,35 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov 7 18:02:43 2024
+
+@author: ratz, mendez
+
+Script for Exercise 5: regression of the ensamble statistics via Spicy.
+NOTE: this code is not yet parallelized and is very demanding in terms of memory.
+
+"""
+
+
 import os
 import numpy as np
-import polars as pl
 import matplotlib.pyplot as plt
 # from spicy import spicy
 from shapely import geometry
-from time import time
 
 
+# This number has the largest impact in the follow:
+n_p = 750000
+# This is the number of particles from the ensamble that will be taken.
+# we here use a large number, which should be ok for a computer with 64 GB of RAM.
+# A computer with 32GB will suffer a bit but still get it done.
+# If you have less than that, you will have troubles. 
+# In that case, you should reduce this number and adopt an agglomeration approach.
+
+# Note that you could use agglomeration also with this number. So instead of running
+# one regression with 750 000 particles, you could run maybe 100 of them (in parallel)
+# and take the average of the results. this would further improve the statistical convergence
+# However, for the purposes of this exercise, we show only 1 ensamble regression.
+# If you are interested in the agglomeration approach, write us an email!
 
 fontsize = 17.8
 plt.rc('text', usetex=True)
@@ -31,12 +54,13 @@ if not os.path.exists(Fol_Plots):
 
 #%% Data loading
 
-data = np.load('JET_PTV.npz')
+data = np.load('PTV_DATA_JET/ptv_JET.npz')
 X, Y, U, V = data['X'], data['Y'], data['U'], data['V']
 
 np.random.seed(42)
 
-n_p = 750000
+
+
 
 idcs = np.arange(X.shape[0])
 np.random.shuffle(idcs)
@@ -54,7 +78,7 @@ scaling = max(x_max - x_min, y_max - y_min)
 
 # We also load the PIV grid to compute the RBF solution on it. Note though that this could be
 # any set of points, uniform or not
-data = np.load('Exercise_3_PIV_Data' + os.sep + 'piv_data.npz')
+data = np.load('PIV_DATA_JET' + os.sep + 'piv_JET.npz')
 X_Piv = data['X']
 Y_Piv = data['Y']
 
@@ -124,7 +148,6 @@ in_box_2 = np.logical_and(
 in_polygon_2 = np.zeros(data_stack[:, in_polygon_1].shape[1], dtype=bool)
 in_polygon_2[in_box_2] = np.array([polygon_points_2.contains(geometry.Point(p)) for p in data_stack[:, in_polygon_1][:, in_box_2].T])
 
-
 # Extract the sets of points
 X_out_glo = X[~in_polygon_1]
 Y_out_glo = Y[~in_polygon_1]
@@ -157,7 +180,8 @@ fig.savefig(Fol_Plots + os.sep + 'Ex5_regions_points.png')
 
 np.random.seed(42)
 
-# Here, we do the pruning in each region. These are the fractions of particles which are kept in each area
+# Here, we do the pruning in each region. 
+# These are the fractions of particles which are kept in each area
 fraction_out = 0.6
 fraction_shear = 1.0
 fraction_core = 0.4
@@ -200,7 +224,6 @@ V_train = np.concatenate((V_out, V_shear, V_core))
 print(str(X_core.size) + ' particles in jet core')
 print(str(X_shear.size) + ' particles in shear layer')
 print(str(X_out.size) + ' particles outside of the jet')
-
 
 #%% Refinement areas clustering
 
@@ -318,8 +341,6 @@ fig.set_constrained_layout_pads(wspace=0.05, w_pad=0.05)
 
 # save figure
 fig.savefig(Fol_Plots + os.sep + 'Ex5_u_mean_v_mean_PIV.png')
-
-
 
 #%%
 # Get the mean velocity in the training data to subtract

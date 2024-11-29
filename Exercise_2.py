@@ -2,7 +2,10 @@
 """
 Created on Mon Nov 11 15:12:40 2024
 
-@author: mendez
+@author: mendez, rigutto
+
+Script for Exercise 2: Coherency analysis between two probes.
+
 """
 
 import os

@@ -1,3 +1,14 @@
+"""
+Created on Mon Nov 25 17:31:27 2024
+
+@author: ratz, mendez
+
+Script for Exercise 6: meshless POD via RBF integration.
+Not fully parallelized yet.
+
+"""
+
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,18 +65,18 @@ with ThreadPoolExecutor(max_workers=num_workers) as executor:
 D = np.transpose(results, axes=(0, 2, 1)).reshape(n_t, n_s).T
 
 from modulo_vki import ModuloVKI
-modu = ModuloVKI(data=np.nan_to_num(D), n_Modes=1000)
+modu = ModuloVKI(data=np.nan_to_num(D), n_Modes=500)
 Phi_grid, Psi_grid, Sigma_grid = modu.compute_POD_K()
 
 #%% Visualization of the gridded modes
 
 # Plot the amplitudes
 fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
-ax.plot(Sigma_grid, 'ko')
+ax.plot(Sigma_grid/Sigma_grid[0], 'ko')
 ax.set_yscale('log')
 ax.set_title('Gridded amplitude $\sigma$')
 ax.set_xlim(-0.5, 50.5)
-ax.set_ylim(1e2, 5e4)
+ax.set_ylim(1e-3, 1)
 fig.tight_layout()
 fig.savefig(Fol_Plots + os.sep + 'Sigmas_grid.pdf')
 
@@ -141,27 +152,62 @@ I_meshless = I_meshless / area
 
 #%% Meshless POD, computation of K matrix
 
-# Initialize the meshless POD K matrix
+from joblib import Parallel, delayed
+import numpy as np
+from tqdm import tqdm
+
+# Function to compute a single element of the covariance matrix
+def compute_K_element(i, j, w_U_all, w_V_all, I_meshless):
+    w_U_i = w_U_all[i]; w_V_i = w_V_all[i]
+    w_U_j = w_U_all[j]; w_V_j = w_V_all[j]
+    # Calculate the element of the covariance matrix K[i, j]
+    K_value = w_U_i.T @ I_meshless @ w_U_j + w_V_i.T @ I_meshless @ w_V_j
+    return (i, j, K_value)
+
+# Load all weights ahead of time to avoid repeated I/O
+w_U_all = []; w_V_all = []
+
+# Assuming `weight_list` and `Fol_Rbf` are already defined
+for i in tqdm(range(len(weight_list)), desc='Loading weights'):
+    w_U_i, w_V_i = np.genfromtxt(Fol_Rbf + os.sep + weight_list[i]).T
+    w_U_all.append(w_U_i)
+    w_V_all.append(w_V_i)
+
+# Stack weights for easy indexing
+w_U_all = np.stack(w_U_all)
+w_V_all = np.stack(w_V_all)
+
+# Number of snapshots
+n_t = len(weight_list)
+
+# Use joblib to parallelize the double loop calculation
+results = Parallel(n_jobs=-1)(
+    delayed(compute_K_element)(i, j, w_U_all, w_V_all, I_meshless)
+    for i in tqdm(range(n_t), desc="Computing covariance matrix")
+    for j in range(i + 1)  # Only compute for j <= i since K is symmetric
+)
+
+# Create an empty covariance matrix
 K_meshless = np.zeros((n_t, n_t))
 
-# Double loop seems inefficient, but the matrix multiplication is the most expensive part and it is already parallelized
-for i in tqdm(range(n_t), desc='Computing meshless K'):
-    w_U_i, w_V_i = np.genfromtxt(Fol_Rbf + os.sep + weight_list[i]).T
-    for j in range(i+1):
-        w_U_j, w_V_j = np.genfromtxt(Fol_Rbf + os.sep + weight_list[j]).T
-
-        # K is symmetric, so we only compute the lower diagonal matrix and mirror it while filling
-        K_meshless[i, j] = w_U_i.T@I_meshless@w_U_j + w_V_i.T@I_meshless@w_V_j
-        K_meshless[j, i] = K_meshless[i, j]
+# Fill in the covariance matrix with the results from the parallel computation
+for i, j, value in results:
+    K_meshless[i, j] = value
+    K_meshless[j, i] = value  # Since K is symmetric
 
 
 # Plot the two different Ks
 fig, axes = plt.subplots(figsize=(10, 5), dpi=100, ncols=2)
-axes[0].imshow(modu.K)
-axes[1].imshow(K_meshless)
+# Use the same vmin and vmax for both plots to ensure the color scale is the same
+im1 = axes[0].imshow(modu.K/np.max(modu.K), vmin=0, vmax=1)
+im2 = axes[1].imshow(K_meshless/np.max(K_meshless), vmin=0, vmax=1)
 axes[0].set_title('Gridded')
 axes[1].set_title('Meshless')
+
+# Add a colorbar to the figure
+fig.colorbar(im1, ax=axes, orientation='vertical', fraction=0.02, pad=0.04)
 fig.tight_layout()
+plt.show()
 fig.savefig(Fol_Plots + os.sep + 'K_matrix.pdf')
 
 #%% Compute the temporal basis Psi and Sigma
@@ -204,11 +250,11 @@ for i in tqdm(range(n_modes), mininterval=1, desc='Computing Meshless Phi'):
 
 # Plot the amplitudes
 fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
-ax.plot(Sigma_meshless, 'ko')
+ax.plot(Sigma_meshless/Sigma_meshless[0], 'ko')
 ax.set_yscale('log')
 ax.set_title('Meshless amplitude $\sigma$')
 ax.set_xlim(-0.5, 50.5)
-ax.set_ylim(5e2, 1e5)
+ax.set_ylim(1e-3, 1)
 fig.tight_layout()
 fig.savefig(Fol_Plots + os.sep + 'Sigmas_meshless.pdf')
 
