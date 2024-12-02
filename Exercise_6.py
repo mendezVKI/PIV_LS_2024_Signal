@@ -28,7 +28,7 @@ plt.rc('font', family='serif')
 plt.rc('xtick', labelsize=13)
 plt.rc('ytick', labelsize=13)
 
-Fol_Plots = 'plots_exercise_5'
+Fol_Plots = 'plots_exercise_6'
 if not os.path.exists(Fol_Plots):
     os.makedirs(Fol_Plots)
 
@@ -65,7 +65,7 @@ with ThreadPoolExecutor(max_workers=num_workers) as executor:
 D = np.transpose(results, axes=(0, 2, 1)).reshape(n_t, n_s).T
 
 from modulo_vki import ModuloVKI
-modu = ModuloVKI(data=np.nan_to_num(D), n_Modes=500)
+modu = ModuloVKI(data=np.nan_to_num(D), n_Modes=1000)
 Phi_grid, Psi_grid, Sigma_grid = modu.compute_POD_K()
 
 #%% Visualization of the gridded modes
@@ -292,3 +292,4 @@ axes[0, 1].set_title('$V$')
 fig.suptitle('Meshless spatial basis $\phi$')
 fig.tight_layout()
 fig.savefig(Fol_Plots + os.sep + 'Phi_meshless.pdf')
+
