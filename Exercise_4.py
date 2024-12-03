@@ -24,13 +24,13 @@ import sys
 sys.path.insert(0, 'spicy_newrelease')
 from spicy_vki.spicy import Spicy
 
+
 # Generate the output folder
 Fol_Plots = 'plots_exercise_4'
 if not os.path.exists(Fol_Plots):
     os.makedirs(Fol_Plots)
 
 #%%
-
 
 Fol_In = 'PTV_DATA_CYLINDER'
 
@@ -146,7 +146,10 @@ y_g = np.linspace(np.min(Y_p), np.max(Y_p), n_y)
 X_g, Y_g = np.meshgrid(x_g, y_g)
 # Get the solution on this new grid
 
-for idx in tqdm(range(100)):
+for idx in tqdm(range(50)):
+    Name = Fol_In + os.sep + file_names[idx]
+    X_p, Y_p, U_p, V_p = np.genfromtxt(Name).T
+
     # Load the weights and assign them to the Spicy object
     weights = np.genfromtxt((Fol_Rbf + os.sep + file_names[idx]))
     SP.w_list = [weights[:, 0], weights[:, 1]]
@@ -162,7 +165,7 @@ for idx in tqdm(range(100)):
 
     axes[1].set_title('RBF Regression')
     axes[1].contourf(X_g, Y_g, np.sqrt(U_reg**2 + V_reg**2), levels=30, vmin=0, vmax=18)
-    axes[1].quiver(X_g, Y_g, U_reg, V_reg)
+    #axes[1].quiver(X_g, Y_g, U_reg, V_reg)
 
     for ax in axes:
         ax.set_aspect('equal')
@@ -187,9 +190,9 @@ gifname = Fol_Plots + os.sep + 'PTV_vs_RBF.gif'
 
 images=[]
 # 3. Pile up the images into a video
-for k in range(100):
-    print('Mounting Im '+ str(k)+' of ' + str(100))
-    Name = Fol_Out_A + os.sep + 'Snapshot_U_{0:03d}.png'.format(idx)
+for k in range(50):
+    print('Mounting Im '+ str(k)+' of ' + str(50))
+    Name = Fol_Out_A + os.sep + 'Snapshot_U_{0:03d}.png'.format(k)
     images.append(imageio.imread(Name))
 
 # 4. Create the gif from the video tensor

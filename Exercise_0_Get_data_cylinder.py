@@ -104,7 +104,7 @@ for idx in tqdm(range(n_t_full), desc='Sampling probes'):
 np.savez('Sampled_PROBES', P1_U=P1_U, P2_U=P2_U, P3_U=P3_U, P1_V=P1_V, P2_V=P2_V, P3_V=P3_V)
 
 
-# %% Step 5: Generate Snapshots (Only generate a few snapshots for speed)
+# %% Step 5: Generate Snapshots (Only generate a few snapshots for the animations)
 n_plots, Fol_Out_A = 20, 'plots_exercise_0/PIV_vs_PTV_Animation_CYL'
 os.makedirs(Fol_Out_A, exist_ok=True)
 
@@ -115,9 +115,13 @@ for idx in tqdm(range(n_plots), desc='Generating plots'):
     Magn_ran = np.sqrt(U_ran ** 2 + V_ran ** 2)
 
     fig, axes = plt.subplots(nrows=2, figsize=(6, 6), sharex=True, sharey=True)
-    axes[0].set_title('PIV Field'); contour = axes[0].contourf(X_g, Y_g, Magn_g, cmap='viridis'); plt.colorbar(contour, ax=axes[0])
-    axes[1].set_title('PTV Field'); scatter = axes[1].scatter(x_ran, y_ran, c=Magn_ran, cmap='viridis'); plt.colorbar(scatter, ax=axes[1])
-    axes[1].quiver(x_ran, y_ran, U_ran, V_ran, color='r', scale=300)
+    axes[0].set_title('PIV Field'); 
+    contour = axes[0].contourf(X_g, Y_g, Magn_g, cmap='viridis',vmin=0, vmax=16); 
+    plt.colorbar(contour, ax=axes[0]);  
+    axes[1].set_title('PTV Field'); 
+    scatter = axes[1].scatter(x_ran, y_ran, c=Magn_ran, cmap='viridis',vmin=0, vmax=16); 
+    plt.colorbar(scatter, ax=axes[1])
+    axes[1].quiver(x_ran, y_ran, U_ran, V_ran, color='k', scale=400)
 
     for ax in axes:
         ax.set_aspect('equal'); ax.set_xlim([0, 50]); ax.set_ylim([-10, 10])
@@ -129,4 +133,3 @@ images = [imageio.imread(os.path.join(Fol_Out_A, f'Snapshot_U_{idx:03d}.png')) f
 imageio.mimsave(gifname, images, duration=0.1, loop=0)
 
 
-# %% Step 8: Compute and Plot Power Spectral Density for P

@@ -8,7 +8,6 @@ Not fully parallelized yet.
 
 """
 
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,17 +17,23 @@ from Functions_Chapter_10 import Plot_Field_TEXT_Cylinder
 from scipy.fft import fft, fftfreq
 
 import sys
-sys.path.insert(0, 'spicy_newrelease')
+sys.path.insert(0, os.path.abspath('spicy_newrelease'))
 # from _basis_RBF import Phi_RBF_2D
 from spicy_vki.utils._basis_RBF import Phi_RBF_2D
 
-# Setting for the plots
+fontsize = 18
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.rc('xtick', labelsize=13)
-plt.rc('ytick', labelsize=13)
+plt.rcParams['xtick.labelsize'] = fontsize
+plt.rcParams['ytick.labelsize'] = fontsize
+plt.rcParams['axes.labelsize'] = fontsize
+plt.rcParams['legend.fontsize'] = fontsize-3
+plt.rcParams['font.size'] = fontsize
+plt.rcParams["text.latex.preamble"] = r"\usepackage{bm}"  # Include the bm package
+plt.rcParams['image.cmap'] = 'viridis'
 
-Fol_Plots = 'plots_exercise_5'
+
+Fol_Plots = 'plots_exercise_6'
 if not os.path.exists(Fol_Plots):
     os.makedirs(Fol_Plots)
 
@@ -44,7 +49,7 @@ n_t = len(file_names)
 # Load the mesh information
 Name = Fol_Piv + os.sep + file_names[0]
 Name_Mesh = Fol_Piv + os.sep + 'MESH.dat'
-n_s, Xg, Yg, Vxg, Vyg, X_S, Y_S = Plot_Field_TEXT_Cylinder(Name, Name_Mesh, PLOT=False)
+n_s, Xg, Yg, Vxg, Vyg, X_S, Y_S = Plot_Field_TEXT_Cylinder(Name, Name_Mesh)
 nxny = int(n_s/2)
 
 
@@ -59,7 +64,6 @@ with ThreadPoolExecutor(max_workers=num_workers) as executor:
         file_names),
         total=len(file_names), desc='Loading PIV Data')))
 
-
 #%% Compute the POD using the modulo package
 
 D = np.transpose(results, axes=(0, 2, 1)).reshape(n_t, n_s).T
@@ -71,21 +75,19 @@ Phi_grid, Psi_grid, Sigma_grid = modu.compute_POD_K()
 #%% Visualization of the gridded modes
 
 # Plot the amplitudes
-fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
+fig, ax = plt.subplots(figsize=(5, 5), dpi=300)
 ax.plot(Sigma_grid/Sigma_grid[0], 'ko')
 ax.set_yscale('log')
-ax.set_title('Gridded amplitude $\sigma$')
+ax.set_title('Gridded amplitude $\sigma$',fontsize=16)
 ax.set_xlim(-0.5, 50.5)
-ax.set_ylim(1e-3, 1)
+ax.set_ylim(1e-2, 1)
 fig.tight_layout()
 fig.savefig(Fol_Plots + os.sep + 'Sigmas_grid.pdf')
-
 
 # And the temporal modes
 
 # Sampling frequency to use for the fft
-Fs = 3000
-dt = 1/Fs
+Fs = 3000; dt = 1/Fs
 t = np.linspace(0, n_snapshots*dt, endpoint=False)
 freqs = fftfreq(n_snapshots, dt)[:n_snapshots//2]
 
@@ -95,10 +97,9 @@ for i in range(axes.shape[0]):
     axes[i].plot(freqs, 2.0/n_snapshots * np.abs(fft(Psi_grid[:, i])[0:n_snapshots//2]))
     axes[i].set_ylabel('Mode ' + str(i))
 axes[2].set_xlabel('$f$ [Hz]')
-fig.suptitle('Gridded FFTs of $\psi$')
+fig.suptitle('Gridded FFTs of $\psi$',fontsize=16)
 fig.tight_layout()
 fig.savefig(Fol_Plots + os.sep + 'Psi_fft_grid.pdf')
-
 
 # And the spatial modes
 n_plot = 3  # Only plot the first 3 spatial modes
@@ -113,14 +114,12 @@ axes[0, 1].set_title('$V$')
 
 fig.suptitle('Gridded spatial basis $\phi$')
 fig.tight_layout()
-fig.savefig(Fol_Plots + os.sep + 'Phi_grid.pdf')
+fig.savefig(Fol_Plots + os.sep + 'Phi_grid.png')
 
 
 #%% Meshless POD, computation of I matrix
-
 # Input folder of the RBF weights
 Fol_Rbf = 'RBF_DATA_CYLINDER'
-
 weight_list = sorted([file for file in os.listdir(Fol_Rbf) if 'RBF' not in file])
 
 # Function for the integrand in equation 77
@@ -138,7 +137,6 @@ y_integrate = np.linspace(Yg.min(), Yg.max(), 61)
 X_integrate, Y_integrate = np.meshgrid(x_integrate, y_integrate)
 X_integrate = X_integrate.ravel()
 Y_integrate = Y_integrate.ravel()
-
 
 # We compute a single matrix I since the RBFs do not change in between time steps, only their weights.
 # This allows to save a lot of computational cost since instead of computing 1000 matrices, we only need 1
@@ -167,7 +165,7 @@ def compute_K_element(i, j, w_U_all, w_V_all, I_meshless):
 # Load all weights ahead of time to avoid repeated I/O
 w_U_all = []; w_V_all = []
 
-# Assuming `weight_list` and `Fol_Rbf` are already defined
+# Data Reader
 for i in tqdm(range(len(weight_list)), desc='Loading weights'):
     w_U_i, w_V_i = np.genfromtxt(Fol_Rbf + os.sep + weight_list[i]).T
     w_U_all.append(w_U_i)
@@ -215,7 +213,7 @@ fig.savefig(Fol_Plots + os.sep + 'K_matrix.pdf')
 # Import the eigensolver for the decomposition
 from scipy.linalg import eigh
 
-n_modes = 1000  # Full POD
+n_modes = 500  # Full POD
 
 # The computation of Sigma and Psi is the same for the meshless POD (since time is still a discrete variable)
 n = np.shape(K_meshless)[0]
@@ -252,9 +250,9 @@ for i in tqdm(range(n_modes), mininterval=1, desc='Computing Meshless Phi'):
 fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
 ax.plot(Sigma_meshless/Sigma_meshless[0], 'ko')
 ax.set_yscale('log')
-ax.set_title('Meshless amplitude $\sigma$')
+ax.set_title('Meshless amplitude $\sigma$',fontsize=16)
 ax.set_xlim(-0.5, 50.5)
-ax.set_ylim(1e-3, 1)
+ax.set_ylim(1e-2, 1)
 fig.tight_layout()
 fig.savefig(Fol_Plots + os.sep + 'Sigmas_meshless.pdf')
 
@@ -273,7 +271,7 @@ for i in range(axes.shape[0]):
     axes[i].plot(freqs, 2.0/n_snapshots * np.abs(fft(Psi_meshless[:, i])[0:n_snapshots//2]))
     axes[i].set_ylabel('Mode ' + str(i))
 axes[2].set_xlabel('$f$ [Hz]')
-fig.suptitle('Meshless FFTs of $\psi$')
+fig.suptitle('Meshless FFTs of $\psi$',fontsize=16)
 fig.tight_layout()
 fig.savefig(Fol_Plots + os.sep + 'Psi_fft_meshless.pdf')
 
@@ -289,6 +287,6 @@ for i in range(axes.shape[0]):
 axes[0, 0].set_title('$U$')
 axes[0, 1].set_title('$V$')
 
-fig.suptitle('Meshless spatial basis $\phi$')
+fig.suptitle('Meshless spatial basis $\phi$',fontsize=16)
 fig.tight_layout()
-fig.savefig(Fol_Plots + os.sep + 'Phi_meshless.pdf')
+fig.savefig(Fol_Plots + os.sep + 'Phi_meshless.png')

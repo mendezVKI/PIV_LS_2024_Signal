@@ -108,7 +108,6 @@ fig.savefig(Fol_Plots + os.sep + 'Ex3_u_mean_v_mean_PIV.png')
 # compute fluctuation fields
 U_prime = U - U_mean[np.newaxis, :]
 V_prime = V - V_mean[np.newaxis, :]
-
 # compute average fluctuations
 uu_mean = np.nansum(U_prime * U_prime * valid, axis=0) / (valid_sum - 1)
 vv_mean = np.nansum(V_prime * V_prime * valid, axis=0) / (valid_sum - 1)

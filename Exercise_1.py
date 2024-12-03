@@ -88,18 +88,23 @@ fig.savefig(Fol_Plots + os.sep + 'Ex2_Means.pdf', dpi=200)
 
 #%% Compute the ensemble autocorrelations
 
-# Definition not normalized
-def ensemble_Autocorr(U_N, W_N, k, j):
-    n_t, n_r = np.shape(U_N)
+def ensemble_Auto_Cross_COV(U_N, W_N, k, j):
+    n_r = np.shape(U_N)[1]
     # Select all realizations at time t_k for U
     U_N_k = U_N[k,:]
     # Select all realizations at time t_kj for W
     W_N_k=W_N[j,:]
     # Note (these are row vectors)
     # Compute the average products
-    PR=(U_N_k-np.mean(U_N_k)).dot((W_N_k-np.mean(W_N_k)))/n_r
-    R_UW=PR/(np.std(U_N_k)*np.std(W_N_k))
-    return R_UW
+    C_UW=(U_N_k-np.mean(U_N_k)).dot((W_N_k-np.mean(W_N_k)))/n_r
+    R_UW=C_UW/(np.std(U_N_k)*np.std(W_N_k))
+    return C_UW,R_UW
+
+
+C_UW_matrix=1/n_r*U_N@U_N.T
+
+
+
 
 
 # Define lag (in number of samples)
@@ -111,7 +116,7 @@ R_UW = np.zeros(N_S)
 J = np.random.randint(500, 800, N_S)
 K = J + 50
 for n in range(N_S):
-  R_UW[n] = ensemble_Autocorr(U_N, U_N, J[n], K[n])
+  R_UW[n] = ensemble_Auto_Cross_COV(U_N, U_N, J[n], K[n])
 
 #%% Finally, analyze the convergence as a function of n_r
 # Create the vector of n_r's that will be tested
@@ -160,10 +165,9 @@ fig.tight_layout(pad=0.6, w_pad=0.3, h_pad=0.8)
 fig.savefig(Fol_Plots + os.sep + 'Ex1_Sigma_Conv.pdf', dpi=200)
 
 
-# Auto-Correlation Matrix
-R_UU = 1/n_r * U_N.dot(U_N.T)
+# Auto-Covariance Matrix
 U_prime = U_N - np.outer(U_Mean, np.ones(n_r))
-C_UU = 1/n_r * U_prime.dot(U_prime.T)
+R_UU = 1/n_r * U_prime.dot(U_prime.T)
 
 
 
